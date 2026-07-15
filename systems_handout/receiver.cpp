@@ -4,17 +4,14 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <stdint.h>
-#include <iostream>
 #include <algorithm>
 
-using namespace std;
-
 static bool present[65536] = {false};
-static uint8_t payload[65536][160] = {0};
+static uint8_t payload[65536][160] = {};
 static bool played[65536] = {false};
 
 static bool has_fec[65536] = {false};
-static uint8_t fec[65536][160] = {0};
+static uint8_t fec[65536][160] = {};
 
 int out_fd;
 struct sockaddr_in player_addr;
@@ -79,32 +76,39 @@ int main(void) {
         while (progress) {
             progress = false;
             int start = std::max(2, (int)latest_seq - 100);
-            for (int i = start; i <= latest_seq; i++) {
+            for (int i = start; i <= (int)latest_seq; i++) {
                 if (!has_fec[i]) continue;
 
+                uint16_t recovered = 65535;
                 if (i == 1) {
                     if (!present[0]) {
                         memcpy(payload[0], fec[1], 160);
                         present[0] = true;
                         send_to_player(0, payload[0]);
+                        recovered = 0;
                         progress = true;
                     }
-                } else if (i >= 2) {
+                } else {
                     if (present[i-1] && !present[i-2]) {
-                        for (int j = 0; j < 160; j++) {
+                        for (int j = 0; j < 160; j++)
                             payload[i-2][j] = fec[i][j] ^ payload[i-1][j];
-                        }
                         present[i-2] = true;
                         send_to_player(i-2, payload[i-2]);
+                        recovered = i-2;
                         progress = true;
                     } else if (!present[i-1] && present[i-2]) {
-                        for (int j = 0; j < 160; j++) {
+                        for (int j = 0; j < 160; j++)
                             payload[i-1][j] = fec[i][j] ^ payload[i-2][j];
-                        }
                         present[i-1] = true;
                         send_to_player(i-1, payload[i-1]);
+                        recovered = i-1;
                         progress = true;
                     }
+                }
+                /* Restart the inner scan from the recovered index
+                   so we immediately test FEC equations that use it. */
+                if (recovered != 65535) {
+                    i = std::max(start, (int)recovered) - 1; /* -1: loop will ++i */
                 }
             }
         }

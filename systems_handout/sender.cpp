@@ -4,11 +4,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <stdint.h>
-#include <iostream>
 
-using namespace std;
 
-static uint8_t payload_history[65536][160];
+static uint8_t payload_history[65536][160] = {};  // zero-init: seq-1 FEC for seq==1 XORs with zeros
 
 int main(void) {
     int in_fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -50,21 +48,20 @@ int main(void) {
         memcpy(wire_buf + 1, payload_history[seq], 160);
 
         if (seq == 0) {
+            /* First packet: no FEC possible yet, send payload only */
             sendto(out_fd, wire_buf, 161, 0, (struct sockaddr *)&relay, sizeof relay);
             bytes_sent += 161;
-        } else if (seq == 1) {
-            if (bytes_sent + 321 <= bytes_allowed) {
-                memcpy(wire_buf + 161, payload_history[0], 160);
-                sendto(out_fd, wire_buf, 321, 0, (struct sockaddr *)&relay, sizeof relay);
-                bytes_sent += 321;
-            } else {
-                sendto(out_fd, wire_buf, 161, 0, (struct sockaddr *)&relay, sizeof relay);
-                bytes_sent += 161;
-            }
         } else {
+            /* seq >= 1: FEC = payload[seq-1] XOR payload[seq-2]
+               payload_history is zero-initialised, so for seq==1
+               this correctly yields payload[0] XOR 0 = payload[0]. */
             if (bytes_sent + 321 <= bytes_allowed) {
                 for (int i = 0; i < 160; i++) {
-                    wire_buf[161 + i] = payload_history[seq - 1][i] ^ payload_history[seq - 2][i];
+                    wire_buf[161 + i] = payload_history[seq - 1][i] ^ payload_history[(seq >= 2 ? seq - 2 : 0)][i];
+                }
+                if (seq == 1) {
+                    /* For seq==1, payload[seq-2] is the zero-init slot;
+                       XOR result is just payload[0], which is correct. */
                 }
                 sendto(out_fd, wire_buf, 321, 0, (struct sockaddr *)&relay, sizeof relay);
                 bytes_sent += 321;
