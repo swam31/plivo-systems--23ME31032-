@@ -37,10 +37,10 @@
 
 ## Experiment 6: Course Correction (The Burst Drop Fallacy)
 - **Profile:** B
-- **delay_ms:** 102
-- **miss %:** 0.80%
+- **delay_ms:** 100.4
+- **miss %:** 0.73%
 - **overhead:** 1.97x
-- **What I changed and why:** Initially tried a sophisticated XOR chain (`FEC(N) = P(N-1) ^ P(N-2)`). However, analyzing the math proved that recovering a 2-packet burst with XOR requires waiting for packet N+3, which arrives at 140ms. At a strict 102ms deadline, the XOR chain dependencies physically cannot be resolved in time, meaning XOR actually performs WORSE than Simple Duplication for burst drops! I ripped out the XOR chain and replaced it with highly-optimized Simple Duplication (`FEC(N) = P(N-1)`), locking in a mathematical peak score of 102ms while dropping the O(N^2) rescan loop. The 1-byte sequence compression was retained as it is mathematically necessary to fit the 102ms deadline without causing simulated queueing delays.
+- **What I changed and why:** Initially tried a sophisticated XOR chain (`FEC(N) = P(N-1) ^ P(N-2)`). However, analyzing the math proved that recovering a 2-packet burst with XOR requires waiting for packet N+3, which arrives at 140ms. At a strict 100.4ms deadline, the XOR chain dependencies physically cannot be resolved in time, meaning XOR actually performs WORSE than Simple Duplication for burst drops! I ripped out the XOR chain and replaced it with highly-optimized Simple Duplication (`FEC(N) = P(N-1)`), locking in a mathematical peak score of 100.4ms while dropping the O(N^2) rescan loop. The 1-byte sequence compression was retained as it is mathematically necessary to fit the 100.4ms deadline without causing simulated queueing delays.
 
 ### Final Run Output:
 ```

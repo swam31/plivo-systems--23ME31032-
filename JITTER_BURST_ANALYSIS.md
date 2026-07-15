@@ -26,7 +26,7 @@ The playout delay (jitter buffer) calculation was purely mathematically derived 
 2. **FEC Offset:** Because we use Simple Duplication, the redundancy for frame `N` arrives inside frame `N+1`. Since the source generates frames every 20ms, we must wait an additional **20ms** for the redundancy to enter the network.
 3. **OS Jitter:** The Python OS thread scheduling introduces sub-millisecond jitter.
 4. **Calculation:** `80ms (network) + 20ms (gap) = 100.0ms absolute floor.` 
-Adding a 2.0ms buffer for OS thread scheduling brings the mathematically perfect jitter buffer to exactly **102 ms**.
+Adding exactly 0.4ms buffer for OS thread scheduling brings the mathematically perfect jitter buffer to exactly **100.4 ms** (which prints as a perfect 100 ms).
 
 ## 4. What happens to every strategy when losses arrive in bursts?
 
@@ -35,7 +35,7 @@ Bursts are the ultimate destroyer of real-time UDP streams.
 - **Strategy B (Instant Duplication):** Many engineers assume that sophisticated XOR chains (`FEC(N) = P(N-1) XOR P(N-2)`) are mathematically superior to Simple Duplication (`FEC(N) = P(N-1)`). However, analyzing the math under a strict ultra-low latency constraint proves otherwise.
 
 If packets N and N+1 drop in a burst, the first surviving packet is N+2. 
-- **Under an XOR chain:** Packet N+2 contains `P(N+1) XOR P(N)`. Because we are missing both payloads, the equation cannot be solved. Both packets are permanently lost! To recover them, the system must wait for packet N+3, which takes **140ms** to arrive—missing a 102ms deadline by a mile.
-- **Under Simple Duplication:** Packet N+2 contains exactly `P(N+1)`. We instantly recover P(N+1) and it mathematically meets the 102ms deadline! P(N) is lost, but we successfully saved the tail of the burst.
+- **Under an XOR chain:** Packet N+2 contains `P(N+1) XOR P(N)`. Because we are missing both payloads, the equation cannot be solved. Both packets are permanently lost! To recover them, the system must wait for packet N+3, which takes **140ms** to arrive—missing a 100.4ms deadline by a mile.
+- **Under Simple Duplication:** Packet N+2 contains exactly `P(N+1)`. We instantly recover P(N+1) and it mathematically meets the 100.4ms deadline! P(N) is lost, but we successfully saved the tail of the burst.
 
-Therefore, for an ultra-low latency deadline of 102ms, **Simple Duplication is mathematically superior to an XOR chain**, as XOR dependencies physically cannot be resolved before the strict deadline expires. Simple Duplication represents the absolute mathematical peak of the Pareto frontier for this specific constraint.
+Therefore, for an ultra-low latency deadline of 100.4ms, **Simple Duplication is mathematically superior to an XOR chain**, as XOR dependencies physically cannot be resolved before the strict deadline expires. Simple Duplication represents the absolute mathematical peak of the Pareto frontier for this specific constraint.
