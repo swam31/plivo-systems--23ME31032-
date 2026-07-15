@@ -56,13 +56,11 @@ int main(void) {
                payload_history is zero-initialised, so for seq==1
                this correctly yields payload[0] XOR 0 = payload[0]. */
             if (bytes_sent + 321 <= bytes_allowed) {
+                uint16_t prev2 = (seq >= 2) ? (seq - 2) : 65535;
                 for (int i = 0; i < 160; i++) {
-                    wire_buf[161 + i] = payload_history[seq - 1][i] ^ payload_history[(seq >= 2 ? seq - 2 : 0)][i];
+                    wire_buf[161 + i] = payload_history[seq - 1][i] ^ payload_history[prev2][i];
                 }
-                if (seq == 1) {
-                    /* For seq==1, payload[seq-2] is the zero-init slot;
-                       XOR result is just payload[0], which is correct. */
-                }
+
                 sendto(out_fd, wire_buf, 321, 0, (struct sockaddr *)&relay, sizeof relay);
                 bytes_sent += 321;
             } else {
