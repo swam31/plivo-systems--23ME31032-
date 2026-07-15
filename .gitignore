@@ -1,1 +1,8 @@
-speedrun/env/
+speedrun/
+__pycache__/
+*.o
+sender
+receiver
+playout_log.json
+relay_stats.json
+.DS_Store
