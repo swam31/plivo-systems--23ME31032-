@@ -28,12 +28,19 @@
 - **overhead:** 1.97x
 - **What I changed and why:** Attempted to lower delay further by abandoning XOR and just sending two identical UDP packets instantly at T0. This failed because sending back-to-back packets overwhelmed the Python harness's `select()` loop, causing > 2ms of scheduling jitter, resulting in deadline misses. It also proved highly vulnerable to burst losses.
 
-## Experiment 5: Final Micro-Optimization
+## Experiment 5: Micro-Optimization
 - **Profile:** B
 - **delay_ms:** 102
-- **miss %:** 0.87%
+- **miss %:** 0.87%, then 0.47% (after loop fix)
 - **overhead:** 1.97x
-- **What I changed and why:** Reverted to the vastly superior XOR FEC architecture. Shrunk the network sequence number from 2 bytes to 1 byte (`uint8_t`) to squeeze extra bandwidth efficiency, allowing the Token Bucket to skip FEC on only 0.6% of frames instead of 1.25%. This is the final, mathematically optimal solution.
+- **What I changed and why:** Reverted to XOR FEC. Shrunk sequence number to 1 byte. Optimized the receiver's chain-reaction recovery loop to immediately restart scanning from a newly-recovered index rather than scanning the full window. This nearly halved the miss rate from 0.87% to 0.47% at 102ms.
+
+## Experiment 6: Pushing the Mathematical Floor
+- **Profile:** B
+- **delay_ms:** 100, then 101
+- **miss %:** 1.13% (at 100ms), 0.67% (at 101ms)
+- **overhead:** 1.97x
+- **What I changed and why:** The absolute mathematical floor for recovery on Profile B is 100ms (80ms network max + 20ms FEC gap). Tested 100ms but it failed with 1.13% misses due to sub-millisecond OS scheduling jitter. Added exactly 1ms of jitter buffer (101ms), which dropped misses back safely under the cap to 0.67%. This is the final absolute optimal score.
 
 ### Final Run Output:
 ```
@@ -41,8 +48,8 @@ endpoints done
 relay done: {'up_bytes': 473980, 'down_bytes': 0, 'up_pkts': 1500, 'down_pkts': 0, 'dropped': 81, 'duplicated': 17}
 ================ SCORE ================
   frames               : 1500
-  deadline misses      : 13  (0.87%)   [cap 1.00%]
-  playout delay        : 102 ms   <-- your score if valid; lower wins
+  deadline misses      : 10  (0.67%)   [cap 1.00%]
+  playout delay        : 101 ms   <-- your score if valid; lower wins
   bandwidth overhead   : 1.97x   [cap 2.00x]   (up 473980B, feedback 0B)
   RESULT               : VALID
 ```
